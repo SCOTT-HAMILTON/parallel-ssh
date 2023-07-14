@@ -1,0 +1,90 @@
+#!/usr/bin/make -f
+# See debhelper(7) (uncomment to enable)
+# output every command that modifies files on the build system.
+#DH_VERBOSE = 1
+
+#! /usr/bin/make -f
+
+#export DH_VERBOSE = 1
+export PYBUILD_NAME = parallel-ssh
+tests_to_skip := \
+	test_client_shells_timeout \
+	test_conn_failure \
+	test_connection_error \
+	test_connection_timeout \
+	test_host_config \
+	test_no_ipv6 \
+	test_pssh_client_auth_failure \
+	test_pssh_client_copy_file_failure \
+	test_pssh_client_directory_abs_path \
+	test_pssh_client_hosts_list_part_failure \
+	test_pssh_client_retries \
+	test_pssh_client_timeout \
+	test_pssh_copy_file \
+	test_pssh_copy_file_per_host_args \
+	test_pssh_copy_remote_file \
+	test_pssh_copy_remote_file_failure \
+	test_pssh_copy_remote_file_per_host_args \
+	test_retries \
+	test_scp_recv \
+	test_scp_recv_failure \
+	test_scp_send_dir_recurse \
+	test_scp_send_larger_files \
+	test_sftp_exceptions \
+	test_timeout_on_open_session \
+	test_unknown_host_failure \
+	test_connection_timeout \
+	test_copy_file_remote_dir_relpath \
+	test_file_output_parsing \
+	test_handshake_fail \
+	test_scp_dir_target \
+	test_scp_send_dir_target \
+	test_sftp_mkdir_rel_path \
+	test_stdout_parsing \
+	test_proxy_bad_target \
+	test_proxy_error \
+	test_tunnel_host_config \
+	test_agent_auth \
+	test_connection_error_exception \
+	test_connection_timeout \
+	test_gssapi_auth \
+	test_pssh_client_auth_failure \
+	test_pssh_client_hosts_list_part_failure \
+	test_pssh_client_timeout \
+	test_timeout_on_open_session \
+	test_connection_timeout \
+	test_copy_file_abspath_recurse \
+	test_multiple_clients_exec_terminates_channels \
+	test_sftp_mkdir_abspath \
+	test_scp_send_dir \
+	test_open_session_timeout \
+	test_disconnect_exc \
+	test_tunnel_parallel_client_running_fail
+
+empty:=
+space:= $(empty) $(empty)
+export PYBUILD_TEST_ARGS=-k 'not ($(subst $(space), or ,$(foreach test,$(tests_to_skip),$(test))))'
+export PYBUILD_TEST_PYTEST=1
+
+define write_skip_tests
+	@for test in $(1); do \
+		awk '/def '$$test'\(/ { print "    @unittest.skipUnless(False, \"debian packaging\")" RS $$0; next }1' $(2) > "$(2)_temp" && mv "$(2)_temp" $(2); \
+	done
+endef
+
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+	dh_lintian
+
+override_dh_auto_test:
+	sed -i -E -e 's/--cov[^ ]* / /g' -e 's/--reruns[^ ]*//g' setup.cfg
+	PYTHONDONTWRITEBYTECODE=1 dh_auto_test
+
+clean:
+	dh_clean
+	rm -rf parallel_ssh.egg-info
+	rm -rf __pycache__
+	rm -rf .pybuild
+	rm -rf build
+	rm -rf .pytest_cache
